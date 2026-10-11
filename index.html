@@ -4,7 +4,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://server.duinocoin.com https://public-pool.io:4000; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://server.duinocoin.com https://public-pool.io:4000 https://api.coingecko.com; base-uri 'none'; form-action 'none'">
   <meta name="referrer" content="no-referrer">
   <title>Crypto Mining Dashboard</title>
   <meta name="description"
@@ -516,6 +517,141 @@
       font-size: .9rem;
       color: var(--err)
     }
+
+    /* Widgets cliquables + crypto ajoutées */
+    .widget[data-coin] {
+      cursor: pointer
+    }
+
+    .widget .hint-click {
+      display: block;
+      margin-top: 1rem;
+      font-size: .75rem;
+      color: var(--muted);
+      text-align: right
+    }
+
+    .widget .remove {
+      position: absolute;
+      top: .8rem;
+      right: .8rem;
+      padding: .1rem .55rem;
+      font-size: .8rem;
+      z-index: 1
+    }
+
+    .widget.added h2 {
+      padding-right: 2rem
+    }
+
+    #add-coin-btn {
+      border-color: var(--ok);
+      color: var(--ok)
+    }
+
+    /* Fenêtres */
+    dialog {
+      margin: auto;
+      width: min(640px, 94vw);
+      max-height: 88vh;
+      overflow: auto;
+      padding: 1.6rem;
+      color: var(--text);
+      background: #101020;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      box-shadow: 0 0 60px -10px var(--accent, var(--btc));
+    }
+
+    dialog::backdrop {
+      background: rgba(3, 3, 10, .75);
+      backdrop-filter: blur(4px)
+    }
+
+    dialog h3 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: var(--accent, var(--btc));
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem
+    }
+
+    .coin-grid {
+      display: grid;
+      gap: .8rem
+    }
+
+    .coin-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      padding: .9rem 1.1rem;
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--c);
+      border-radius: 14px;
+      background: var(--card)
+    }
+
+    .coin-card p {
+      color: var(--muted);
+      font-size: .85rem;
+      margin-top: .2rem
+    }
+
+    .coin-card b {
+      color: var(--c)
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: .7rem;
+      padding: .05rem .5rem;
+      margin-left: .4rem;
+      border-radius: 999px;
+      border: 1px solid var(--ok);
+      color: var(--ok)
+    }
+
+    .badge.mid {
+      border-color: var(--warn);
+      color: var(--warn)
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: .8rem;
+      margin-bottom: 1rem
+    }
+
+    .info-grid div {
+      padding: .7rem .9rem;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--card)
+    }
+
+    .info-grid .v {
+      font-size: 1.15rem;
+      font-weight: 500;
+      margin-top: .2rem;
+      word-break: break-word
+    }
+
+    .info-text {
+      color: var(--muted);
+      font-size: .92rem;
+      line-height: 1.55;
+      margin-bottom: .8rem
+    }
+
+    .info-text b {
+      color: var(--text)
+    }
   </style>
 </head>
 
@@ -563,6 +699,7 @@
       </div>
       <div class="pill">Prochaine actualisation : <b id="countdown">60</b>s</div>
       <button id="refresh-btn" type="button">⟳ Actualiser</button>
+      <button id="add-coin-btn" type="button">➕ Ajouter une crypto</button>
       <div class="pill">👤 <b id="user-label">—</b></div>
       <button id="edit-keys" type="button">🔑 Mes clés</button>
       <button id="logout-btn" type="button">Déconnexion</button>
@@ -571,7 +708,7 @@
   <div class="progress"><i id="progress-bar"></i></div>
 
   <main>
-    <section class="widget duco" id="widget-duco">
+    <section class="widget duco" id="widget-duco" data-coin="duco" tabindex="0" title="Cliquer pour plus d'infos">
       <h2>Duino-Coin (DUCO) <span class="status" id="duco-status">...</span></h2>
       <div class="metric">
         <div class="label">Solde DUCO</div>
@@ -588,7 +725,7 @@
       <canvas class="spark" id="duco-chart" aria-label="Historique du solde DUCO"></canvas>
     </section>
 
-    <section class="widget btc" id="widget-btc">
+    <section class="widget btc" id="widget-btc" data-coin="btc" tabindex="0" title="Cliquer pour plus d'infos">
       <h2>NerdMiner · Bitcoin Solo <span class="status" id="btc-status">...</span></h2>
       <div class="metric">
         <div class="label">Taux de hachage</div>
@@ -605,7 +742,20 @@
       <canvas class="spark" id="btc-chart" aria-label="Historique du hashrate"></canvas>
       <ul class="workers" id="worker-list"></ul>
     </section>
+    <div id="extra-coins" style="display:contents"></div>
   </main>
+
+  <dialog id="add-dialog" aria-label="Ajouter une cryptomonnaie">
+    <h3><span>➕ Ajouter une cryptomonnaie</span><button type="button" class="close-dlg">✕</button></h3>
+    <p class="info-text">Voici les cryptos que l'on peut miner facilement (PC, téléphone, Raspberry Pi…). Débloquez-en
+      une
+      pour afficher son tableau de bord, puis cliquez dessus pour savoir comment la miner.</p>
+    <div class="coin-grid" id="catalog"></div>
+  </dialog>
+
+  <dialog id="info-dialog" aria-label="Informations sur la crypto">
+    <div id="info-body"></div>
+  </dialog>
 
   <section class="panel alerts" id="alerts-panel">
     <h2>🔔 Alertes &amp; surveillance</h2>
@@ -671,7 +821,8 @@
         <li>Les comptes ne sont pas partagés entre navigateurs ou appareils.</li>
         <li>Mot de passe oublié = clés à ressaisir sur un nouveau compte (il n'y a pas de récupération).</li>
         <li>Pour que le chiffrement soit disponible, ouvrez la page via <code>https://</code>, <code>localhost</code> ou
-          <code>file://</code>.</li>
+          <code>file://</code>.
+        </li>
       </ul>
     </details>
   </section>
@@ -682,6 +833,23 @@
     /* Anti-clickjacking : refuse d'être chargé dans une iframe */
     if (window.top !== window.self) { document.body.textContent = ''; window.top.location = window.self.location }
     const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    /* ---------- Catalogue des cryptos ---------- */
+    const COINS = {
+      duco: { cg: 'duino-coin', name: 'Duino-Coin', sym: 'DUCO', color: '#ff9f1c', algo: 'DUCO-S1 / XXHASH', level: 'Très facile', hw: 'ESP32, Arduino, Raspberry Pi, PC, navigateur', desc: "Pièce conçue pour être minée sur de petits appareils (microcontrôleurs, vieux PC).", how: 'Créez un compte sur duinocoin.com, puis lancez le mineur PC/ESP avec votre pseudo.' },
+      btc: { cg: 'bitcoin', name: 'Bitcoin', sym: 'BTC', color: '#00f0ff', algo: 'SHA-256', level: 'Loterie (solo)', hw: 'NerdMiner (ESP32), ASIC', desc: "Minage solo via NerdMiner : très peu de chances de trouver un bloc, mais c'est ludique.", how: 'Flashez un NerdMiner, renseignez votre adresse BTC et le pool public-pool.io.' },
+      xmr: { cg: 'monero', name: 'Monero', sym: 'XMR', color: '#ff6600', algo: 'RandomX', level: 'Facile', hw: 'CPU de PC / Raspberry Pi', desc: 'Crypto privée, conçue pour être minée avec un simple processeur.', how: 'Installez XMRig, choisissez un pool (ex : SupportXMR) et indiquez votre adresse Monero.' },
+      vrsc: { cg: 'verus-coin', name: 'Verus', sym: 'VRSC', color: '#3165d4', algo: 'VerusHash 2.1', level: 'Très facile', hw: 'CPU, téléphone Android, Raspberry Pi', desc: 'Algorithme optimisé pour les CPU : même un téléphone peut participer.', how: 'Utilisez ccminer (Android/PC) avec un pool Verus et votre adresse R… .' },
+      rvn: { cg: 'ravencoin', name: 'Ravencoin', sym: 'RVN', color: '#e86a3a', algo: 'KawPow', level: 'Moyen', hw: 'Carte graphique (GPU)', desc: 'Minable avec un GPU grand public, résistant aux ASIC.', how: 'Lancez T-Rex ou TeamRedMiner avec un pool (ex : 2miners) et votre adresse RVN.' },
+      kas: { cg: 'kaspa', name: 'Kaspa', sym: 'KAS', color: '#49eacb', algo: 'kHeavyHash', level: 'Moyen', hw: 'GPU, ASIC', desc: 'Blockchain très rapide (BlockDAG), minable avec un GPU.', how: 'Utilisez lolMiner ou BzMiner avec un pool Kaspa et votre adresse kaspa:… .' },
+      erg: { cg: 'ergo', name: 'Ergo', sym: 'ERG', color: '#ff5e18', algo: 'Autolykos2', level: 'Moyen', hw: 'GPU (4 Go de VRAM min.)', desc: 'Faible consommation mémoire, adaptée aux GPU grand public.', how: 'Lancez lolMiner ou Nanominer avec un pool Ergo et votre adresse.' },
+      rtm: { cg: 'raptoreum', name: 'Raptoreum', sym: 'RTM', color: '#9b59ff', algo: 'GhostRider', level: 'Facile', hw: 'CPU', desc: 'Pièce minée au CPU, accessible sans carte graphique.', how: 'Utilisez cpuminer-gr avec un pool Raptoreum et votre adresse.' },
+      ltc: { cg: 'litecoin', name: 'Litecoin', sym: 'LTC', color: '#a5a9b4', algo: 'Scrypt', level: 'ASIC requis', hw: 'ASIC Scrypt (minage en pool)', desc: 'Minage conjoint avec Dogecoin (merged mining).', how: 'Nécessite un ASIC Scrypt ; rejoignez un pool comme LitecoinPool.' },
+      doge: { cg: 'dogecoin', name: 'Dogecoin', sym: 'DOGE', color: '#e2b84a', algo: 'Scrypt', level: 'ASIC requis', hw: 'ASIC Scrypt', desc: 'Miné avec Litecoin en merged mining.', how: 'Même matériel que Litecoin : un ASIC Scrypt sur un pool compatible.' }
+    };
+    let prices = {};
+    const priceFmt = p => fr(p, p < 1 ? 4 : 2) + ' €';
+    const chgHTML = c => isFinite(c) ? `<span class="trend ${c >= 0 ? 'up' : 'down'}">${c >= 0 ? '▲' : '▼'} ${fr(Math.abs(c), 2)} %</span>` : '—';
+
     /* Renseignés à la connexion à partir des clés du compte */
     let DUCO_URL = '', BTC_ADDR = '';
     const btcUrls = () => [
@@ -700,10 +868,11 @@
     };
     let currentUser = null;
     let history = { duco: [], btc: [] };
-    let settings = { minHash: 0, notif: false, sound: true };
+    let settings = { minHash: 0, notif: false, sound: true, coins: [] };
     let state = { ducoFails: 0, btcFails: 0, lastWorkers: null, ducoDown: false, btcDown: false, lowHash: false };
 
     function pushHistory(key, v) {
+      history[key] = history[key] || [];
       history[key].push({ t: Date.now(), v });
       if (history[key].length > MAX_POINTS) history[key].shift();
       store.set('mining-history:' + currentUser, history);
@@ -762,7 +931,89 @@
     function redrawCharts() {
       drawChart('duco-chart', history.duco, '#ff9f1c');
       drawChart('btc-chart', history.btc, '#00f0ff');
+      (settings.coins || []).forEach(k => { if ($('chart-' + k)) drawChart('chart-' + k, history[k] || [], COINS[k].color) });
     }
+
+    /* ---------- Cryptos ajoutées + prix ---------- */
+    async function updatePrices() {
+      const ids = [...new Set(['duco', 'btc', ...(settings.coins || [])].map(k => COINS[k].cg))];
+      try {
+        prices = await getJSON('https://api.coingecko.com/api/v3/simple/price?ids=' + ids.join(',') +
+          '&vs_currencies=eur&include_24hr_change=true&include_market_cap=true');
+      } catch (e) { console.error('PRICES', e) }
+    }
+    function renderCoins() {
+      const box = $('extra-coins');
+      box.innerHTML = (settings.coins || []).filter(k => COINS[k]).map(k => {
+        const c = COINS[k], p = prices[c.cg], arr = history[k] || [];
+        return `<section class="widget added" data-coin="${k}" tabindex="0" style="--accent:${c.color}" title="Cliquer pour plus d'infos">
+          <button type="button" class="remove" data-remove="${k}" aria-label="Retirer ${esc(c.name)}">✕</button>
+          <h2>${esc(c.name)} (${esc(c.sym)}) <span class="status ${p ? 'ok' : ''}">${p ? 'En ligne' : '...'}</span></h2>
+          <div class="metric"><div class="label">Cours</div>
+            <div class="value">${p ? priceFmt(p.eur) + chgHTML(p.eur_24h_change) : '<span class="value loading">Chargement...</span>'}</div></div>
+          <div class="metric"><div class="label">Difficulté de minage</div><div class="value small">${esc(c.level)}</div></div>
+          <canvas class="spark" id="chart-${k}" aria-label="Historique du cours ${esc(c.name)}"></canvas>
+          <span class="hint-click">Cliquer pour plus d'infos</span>
+        </section>`;
+      }).join('');
+      (settings.coins || []).forEach(k => { if (COINS[k] && prices[COINS[k].cg]) pushHistory(k, prices[COINS[k].cg].eur) });
+      redrawCharts();
+    }
+    function renderCatalog() {
+      $('catalog').innerHTML = Object.entries(COINS).filter(([k]) => k !== 'duco' && k !== 'btc').map(([k, c]) => {
+        const on = (settings.coins || []).includes(k);
+        return `<div class="coin-card" style="--c:${c.color}"><div><b>${esc(c.name)} (${esc(c.sym)})</b>
+          <span class="badge ${c.level === 'Facile' || c.level === 'Très facile' ? '' : 'mid'}">${esc(c.level)}</span>
+          <p>${esc(c.algo)} · ${esc(c.hw)}</p></div>
+          <button type="button" data-toggle="${k}">${on ? '✓ Ajoutée (retirer)' : '🔓 Débloquer'}</button></div>`;
+      }).join('');
+    }
+    async function toggleCoin(k) {
+      settings.coins = settings.coins || [];
+      const i = settings.coins.indexOf(k);
+      if (i >= 0) settings.coins.splice(i, 1); else settings.coins.push(k);
+      save(); renderCatalog(); renderCoins();
+      if (i < 0) { await updatePrices(); renderCoins() }
+    }
+    function openInfo(k) {
+      const c = COINS[k]; if (!c) return;
+      const show = () => {
+        const p = prices[c.cg];
+        let mine = '';
+        if (k === 'duco') mine = `<div><span class="label">Mon solde</span><div class="v">${esc($('duco-balance').textContent)}</div></div><div><span class="label">Rythme estimé</span><div class="v">${esc($('duco-rate').textContent)}</div></div>`;
+        if (k === 'btc') mine = `<div><span class="label">Mon hashrate</span><div class="v">${esc($('btc-hashrate').textContent)}</div></div><div><span class="label">Workers</span><div class="v">${esc($('btc-workers').textContent)}</div></div>`;
+        $('info-body').style.setProperty('--accent', c.color);
+        $('info-dialog').style.setProperty('--accent', c.color);
+        $('info-body').innerHTML = `<h3><span>${esc(c.name)} (${esc(c.sym)})</span><button type="button" class="close-dlg">✕</button></h3>
+          <div class="info-grid">
+            <div><span class="label">Cours</span><div class="v">${p ? priceFmt(p.eur) : 'N/A'}</div></div>
+            <div><span class="label">Variation 24 h</span><div class="v">${p ? chgHTML(p.eur_24h_change) : 'N/A'}</div></div>
+            <div><span class="label">Capitalisation</span><div class="v">${p && p.eur_market_cap ? fr(p.eur_market_cap, 0) + ' €' : 'N/A'}</div></div>
+            <div><span class="label">Algorithme</span><div class="v">${esc(c.algo)}</div></div>
+            <div><span class="label">Difficulté</span><div class="v">${esc(c.level)}</div></div>
+            <div><span class="label">Matériel</span><div class="v">${esc(c.hw)}</div></div>
+            ${mine}
+          </div>
+          <p class="info-text">${esc(c.desc)}</p>
+          <p class="info-text"><b>Comment miner :</b> ${esc(c.how)}</p>`;
+        if (!$('info-dialog').open) $('info-dialog').showModal();
+      };
+      show();
+      if (!prices[c.cg]) updatePrices().then(show);
+    }
+    $('add-coin-btn').addEventListener('click', () => { renderCatalog(); $('add-dialog').showModal() });
+    $('catalog').addEventListener('click', e => { const b = e.target.closest('[data-toggle]'); if (b) toggleCoin(b.dataset.toggle) });
+    document.addEventListener('click', e => {
+      if (e.target.closest('.close-dlg')) return e.target.closest('dialog').close();
+      if (e.target.tagName === 'DIALOG') return e.target.close();
+      const rm = e.target.closest('[data-remove]');
+      if (rm) return toggleCoin(rm.dataset.remove);
+      const w = e.target.closest('.widget[data-coin]');
+      if (w) openInfo(w.dataset.coin);
+    });
+    document.addEventListener('keydown', e => {
+      if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.widget[data-coin]')) { e.preventDefault(); openInfo(e.target.dataset.coin) }
+    });
 
     /* ---------- Alertes ---------- */
     function beep() {
@@ -869,9 +1120,9 @@
     async function refresh() {
       if (busy) return;
       busy = true; $('refresh-btn').disabled = true;
-      const results = await Promise.all([updateDuco(), updateBtc()]);
-      if (results.some(Boolean)) $('last-update').textContent = new Date().toLocaleTimeString('fr-FR');
-      redrawCharts();
+      const results = await Promise.all([updateDuco(), updateBtc(), updatePrices()]);
+      if (results.some(r => r === true)) $('last-update').textContent = new Date().toLocaleTimeString('fr-FR');
+      renderCoins();
       remaining = REFRESH_S; busy = false; $('refresh-btn').disabled = false;
     }
     setInterval(() => {
@@ -1007,7 +1258,8 @@
       DUCO_URL = 'https://server.duinocoin.com/balances/' + encodeURIComponent(keys.duco);
       BTC_ADDR = keys.btc;
       history = store.get('mining-history:' + currentUser, { duco: [], btc: [] });
-      settings = store.get('mining-settings:' + currentUser, { minHash: 0, notif: false, sound: true });
+      settings = { minHash: 0, notif: false, sound: true, coins: [], ...store.get('mining-settings:' + currentUser, {}) };
+      if (!Array.isArray(settings.coins)) settings.coins = [];
       state = { ducoFails: 0, btcFails: 0, lastWorkers: null, ducoDown: false, btcDown: false, lowHash: false };
       $('user-label').textContent = accounts[currentUser].name;
       applySettings();
