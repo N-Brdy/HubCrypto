@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://server.duinocoin.com https://public-pool.io:4000; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>Crypto Mining Dashboard</title>
+  <meta name="description"
+    content="Tableau de bord personnel de minage : Duino-Coin et NerdMiner (Bitcoin solo), avec historique et alertes.">
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="apple-touch-icon" href="logo.png">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07070f;
+      --card: rgba(255, 255, 255, .04);
+      --border: rgba(255, 255, 255, .09);
+      --text: #e8e8f5;
+      --muted: #8a8aa8;
+      --duco: #ff9f1c;
+      --btc: #00f0ff;
+      --ok: #39ff88;
+      --err: #ff4d6d;
+      --warn: #ffd24d;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: 'Outfit', system-ui, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 15% 10%, rgba(255, 159, 28, .15), transparent 40%),
+        radial-gradient(circle at 85% 90%, rgba(0, 240, 255, .15), transparent 40%),
+        var(--bg);
+      background-attachment: fixed;
+      padding: 2rem 1.2rem;
+    }
+
+    header {
+      max-width: 1000px;
+      margin: 0 auto 2rem;
+      text-align: center
+    }
+
+    h1 {
+      font-size: clamp(1.8rem, 5vw, 3rem);
+      font-weight: 700;
+      letter-spacing: .02em;
+      background: linear-gradient(90deg, var(--duco), var(--btc));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .7rem;
+      justify-content: center;
+      align-items: center;
+      margin-top: 1rem;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: .6rem;
+      padding: .5rem 1.1rem;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--card);
+      backdrop-filter: blur(10px);
+      color: var(--muted);
+      font-size: .92rem;
+    }
+
+    .pill b {
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      font-weight: 500
+    }
+
+    button {
+      font: inherit;
+      cursor: pointer;
+      color: var(--text);
+      padding: .5rem 1.1rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      transition: all .25s;
+    }
+
+    button:hover {
+      border-color: var(--btc);
+      box-shadow: 0 0 16px -4px var(--btc)
+    }
+
+    button:disabled {
+      opacity: .5;
+      cursor: wait
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--ok);
+      box-shadow: 0 0 10px var(--ok);
+      animation: pulse 1.6s infinite;
+    }
+
+    @keyframes pulse {
+      50% {
+        opacity: .3
+      }
+    }
+
+    .progress {
+      max-width: 1000px;
+      height: 3px;
+      margin: 0 auto 2rem;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress i {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, var(--duco), var(--btc));
+    }
+
+    main {
+      max-width: 1000px;
+      margin: 0 auto;
+      display: grid;
+      gap: 1.5rem;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    }
+
+    .widget,
+    .panel {
+      --accent: var(--duco);
+      position: relative;
+      padding: 1.8rem;
+      border-radius: 20px;
+      overflow: hidden;
+      background: var(--card);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(14px);
+      transition: transform .3s, box-shadow .3s, border-color .3s;
+    }
+
+    .widget.btc,
+    .panel.alerts {
+      --accent: var(--btc)
+    }
+
+    .widget:hover {
+      transform: translateY(-4px);
+      border-color: var(--accent);
+      box-shadow: 0 0 30px -8px var(--accent)
+    }
+
+    .widget::before,
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    }
+
+    h2 {
+      font-size: 1.2rem;
+      font-weight: 500;
+      color: var(--accent);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.4rem;
+    }
+
+    .status {
+      font-size: .75rem;
+      padding: .2rem .6rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    .status.ok {
+      color: var(--ok);
+      border-color: var(--ok)
+    }
+
+    .status.error {
+      color: var(--err);
+      border-color: var(--err)
+    }
+
+    .metric {
+      margin-bottom: 1.2rem
+    }
+
+    .metric:last-child {
+      margin-bottom: 0
+    }
+
+    .label {
+      font-size: .8rem;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      color: var(--muted)
+    }
+
+    .value {
+      font-size: clamp(1.8rem, 4.5vw, 2.6rem);
+      font-weight: 700;
+      color: var(--accent);
+      text-shadow: 0 0 18px color-mix(in srgb, var(--accent) 55%, transparent);
+      font-variant-numeric: tabular-nums;
+      word-break: break-word;
+    }
+
+    .value.small {
+      font-size: 1.4rem
+    }
+
+    .value.loading {
+      color: var(--muted);
+      text-shadow: none;
+      font-size: 1.4rem;
+      animation: pulse 1.2s infinite
+    }
+
+    .value.error {
+      color: var(--err);
+      text-shadow: none;
+      font-size: 1.4rem
+    }
+
+    .unit {
+      font-size: 1rem;
+      font-weight: 300;
+      color: var(--muted);
+      margin-left: .3rem
+    }
+
+    .trend {
+      font-size: .9rem;
+      margin-left: .4rem;
+      font-weight: 500
+    }
+
+    .trend.up {
+      color: var(--ok)
+    }
+
+    .trend.down {
+      color: var(--err)
+    }
+
+    canvas.spark {
+      width: 100%;
+      height: 70px;
+      display: block;
+      margin-top: .6rem
+    }
+
+    .workers {
+      list-style: none;
+      margin-top: .5rem;
+      font-size: .9rem
+    }
+
+    .workers li {
+      display: flex;
+      justify-content: space-between;
+      gap: .6rem;
+      padding: .35rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .workers li span:last-child {
+      color: var(--btc);
+      font-variant-numeric: tabular-nums
+    }
+
+    /* Alertes */
+    .panel {
+      max-width: 1000px;
+      margin: 1.5rem auto 0
+    }
+
+    .settings {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.2rem;
+      align-items: center;
+      margin-bottom: 1rem;
+      font-size: .92rem;
+      color: var(--muted)
+    }
+
+    .settings input[type=number] {
+      width: 90px;
+      font: inherit;
+      color: var(--text);
+      background: rgba(255, 255, 255, .06);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .3rem .5rem;
+    }
+
+    .settings label {
+      display: flex;
+      align-items: center;
+      gap: .5rem
+    }
+
+    #alert-log {
+      list-style: none;
+      max-height: 180px;
+      overflow: auto;
+      font-size: .9rem
+    }
+
+    #alert-log li {
+      padding: .4rem 0;
+      border-bottom: 1px solid var(--border);
+      color: var(--muted)
+    }
+
+    #alert-log li.crit {
+      color: var(--err)
+    }
+
+    #alert-log li.warn {
+      color: var(--warn)
+    }
+
+    #alert-log li.info {
+      color: var(--ok)
+    }
+
+    #alert-log time {
+      color: var(--text);
+      margin-right: .6rem;
+      font-variant-numeric: tabular-nums
+    }
+
+    /* Explications */
+    .help {
+      max-width: 1000px;
+      margin: 1.5rem auto 0
+    }
+
+    details {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--card);
+      padding: .9rem 1.2rem;
+      margin-bottom: .7rem;
+    }
+
+    summary {
+      cursor: pointer;
+      font-weight: 500;
+      color: var(--text)
+    }
+
+    details p,
+    details ul {
+      margin-top: .7rem;
+      color: var(--muted);
+      font-size: .92rem;
+      line-height: 1.55
+    }
+
+    details ul {
+      padding-left: 1.2rem
+    }
+
+    code {
+      background: rgba(255, 255, 255, .08);
+      padding: .1rem .35rem;
+      border-radius: 5px;
+      color: var(--btc)
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 2.5rem;
+      color: var(--muted);
+      font-size: .8rem
+    }
+
+    /* Logo */
+    .logo {
+      width: 72px;
+      height: 72px;
+      border-radius: 18px;
+      display: block;
+      margin: 0 auto .8rem;
+      box-shadow: 0 0 28px -6px var(--btc)
+    }
+
+    .logo.small {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      margin: 0 .6rem 0 0;
+      display: inline-block;
+      vertical-align: middle
+    }
+
+    /* Authentification */
+    body.locked>:not(#auth) {
+      display: none !important
+    }
+
+    #auth {
+      display: none;
+      max-width: 440px;
+      margin: 4vh auto 0
+    }
+
+    body.locked #auth {
+      display: block
+    }
+
+    #auth .panel {
+      margin: 0;
+      --accent: var(--btc)
+    }
+
+    .tabs {
+      display: flex;
+      gap: .5rem;
+      margin-bottom: 1.2rem
+    }
+
+    .tabs button {
+      flex: 1
+    }
+
+    .tabs button.active {
+      border-color: var(--btc);
+      color: var(--btc)
+    }
+
+    #auth form {
+      display: none;
+      flex-direction: column;
+      gap: .9rem
+    }
+
+    #auth form.show {
+      display: flex
+    }
+
+    #auth label {
+      display: flex;
+      flex-direction: column;
+      gap: .3rem;
+      font-size: .8rem;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: var(--muted)
+    }
+
+    #auth input {
+      font: inherit;
+      font-size: 1rem;
+      text-transform: none;
+      letter-spacing: 0;
+      color: var(--text);
+      background: rgba(255, 255, 255, .06);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: .6rem .8rem
+    }
+
+    #auth input:focus {
+      outline: none;
+      border-color: var(--btc)
+    }
+
+    #auth button.primary {
+      background: linear-gradient(90deg, var(--duco), var(--btc));
+      color: #07070f;
+      font-weight: 700;
+      border: 0
+    }
+
+    #auth .hint {
+      font-size: .85rem;
+      color: var(--muted);
+      line-height: 1.5
+    }
+
+    #auth-msg {
+      min-height: 1.2rem;
+      margin-top: .8rem;
+      font-size: .9rem;
+      color: var(--err)
+    }
+  </style>
+</head>
+
+<body class="locked">
+  <section id="auth" aria-label="Authentification">
+    <div class="panel">
+      <h2><span><img class="logo small" src="logo.png" alt="Logo">Crypto Mining Dashboard</span></h2>
+      <div class="tabs" id="auth-tabs">
+        <button type="button" id="tab-login" class="active">Connexion</button>
+        <button type="button" id="tab-register">Créer un compte</button>
+      </div>
+
+      <form id="form-login" class="show" autocomplete="on">
+        <label>Pseudo <input id="login-name" autocomplete="username" required></label>
+        <label>Mot de passe <input id="login-pass" type="password" autocomplete="current-password" required></label>
+        <button class="primary" type="submit">Se connecter</button>
+      </form>
+
+      <form id="form-register" autocomplete="on">
+        <label>Pseudo <input id="reg-name" autocomplete="username" minlength="3" maxlength="24" required></label>
+        <label>Mot de passe (8 caractères min.) <input id="reg-pass" type="password" autocomplete="new-password"
+            minlength="8" required></label>
+        <label>Confirmer le mot de passe <input id="reg-pass2" type="password" autocomplete="new-password"
+            required></label>
+        <button class="primary" type="submit">Créer mon compte</button>
+      </form>
+
+      <form id="form-keys">
+        <p class="hint">Entrez vos clés une seule fois : elles seront chiffrées avec votre mot de passe et rechargées
+          automatiquement à chaque connexion.</p>
+        <label>Nom d'utilisateur Duino-Coin <input id="key-duco" placeholder="ex : Nono_coin" required></label>
+        <label>Adresse Bitcoin (NerdMiner) <input id="key-btc" placeholder="bc1q..." required></label>
+        <button class="primary" type="submit">Enregistrer et continuer</button>
+        <button type="button" id="keys-cancel" hidden>Annuler</button>
+      </form>
+      <div id="auth-msg" role="alert"></div>
+    </div>
+  </section>
+
+  <header>
+    <img class="logo" src="logo.png" alt="Logo Crypto Mining Dashboard">
+    <h1>Crypto Mining Dashboard</h1>
+    <div class="toolbar">
+      <div class="pill" id="clock"><span class="dot"></span>Dernière mise à jour : <b id="last-update">--:--:--</b>
+      </div>
+      <div class="pill">Prochaine actualisation : <b id="countdown">60</b>s</div>
+      <button id="refresh-btn" type="button">⟳ Actualiser</button>
+      <div class="pill">👤 <b id="user-label">—</b></div>
+      <button id="edit-keys" type="button">🔑 Mes clés</button>
+      <button id="logout-btn" type="button">Déconnexion</button>
+    </div>
+  </header>
+  <div class="progress"><i id="progress-bar"></i></div>
+
+  <main>
+    <section class="widget duco" id="widget-duco">
+      <h2>Duino-Coin (DUCO) <span class="status" id="duco-status">...</span></h2>
+      <div class="metric">
+        <div class="label">Solde DUCO</div>
+        <div class="value loading" id="duco-balance">Chargement...</div>
+      </div>
+      <div class="metric">
+        <div class="label">Gain depuis le début de l'historique</div>
+        <div class="value small" id="duco-gain">—</div>
+      </div>
+      <div class="metric">
+        <div class="label">Rythme estimé</div>
+        <div class="value small" id="duco-rate">—</div>
+      </div>
+      <canvas class="spark" id="duco-chart" aria-label="Historique du solde DUCO"></canvas>
+    </section>
+
+    <section class="widget btc" id="widget-btc">
+      <h2>NerdMiner · Bitcoin Solo <span class="status" id="btc-status">...</span></h2>
+      <div class="metric">
+        <div class="label">Taux de hachage</div>
+        <div class="value loading" id="btc-hashrate">Chargement...</div>
+      </div>
+      <div class="metric">
+        <div class="label">Travailleurs actifs</div>
+        <div class="value loading" id="btc-workers">Chargement...</div>
+      </div>
+      <div class="metric">
+        <div class="label">Meilleure difficulté (best diff)</div>
+        <div class="value small" id="btc-best">—</div>
+      </div>
+      <canvas class="spark" id="btc-chart" aria-label="Historique du hashrate"></canvas>
+      <ul class="workers" id="worker-list"></ul>
+    </section>
+  </main>
+
+  <section class="panel alerts" id="alerts-panel">
+    <h2>🔔 Alertes &amp; surveillance</h2>
+    <div class="settings">
+      <label>Alerter si hashrate &lt; <input type="number" id="min-hash" min="0" step="1" value="0"> KH/s</label>
+      <label><input type="checkbox" id="notif-toggle"> Notifications navigateur</label>
+      <label><input type="checkbox" id="sound-toggle" checked> Son</label>
+      <button type="button" id="clear-history">Effacer l'historique</button>
+    </div>
+    <ul id="alert-log">
+      <li class="info">Aucune alerte pour le moment.</li>
+    </ul>
+  </section>
+
+  <section class="help" id="help">
+    <details open>
+      <summary>Comment fonctionne ce tableau de bord ?</summary>
+      <p>La page interroge directement deux API publiques avec <code>fetch()</code>, puis met à jour l'affichage toutes
+        les 60 secondes. Aucun serveur n'est nécessaire : tout tourne dans votre navigateur.</p>
+      <ul>
+        <li><b>Duino-Coin</b> : lecture de <code>balance</code> sur
+          <code>server.duinocoin.com/balances/Nono_coin</code>.
+        </li>
+        <li><b>NerdMiner</b> : lecture du hashrate, de <code>workersCount</code> et de la meilleure difficulté sur
+          <code>public-pool.io:4000</code>. Le hashrate est converti de H/s en KH/s. S'il n'est pas fourni globalement,
+          il est calculé en additionnant celui de chaque worker.
+        </li>
+        <li><b>Erreurs</b> : « Chargement... » au démarrage, « Erreur réseau » si l'API ne répond pas (délai max. 15 s).
+          Chaque widget échoue indépendamment.</li>
+      </ul>
+    </details>
+    <details>
+      <summary>Historique et graphiques</summary>
+      <p>À chaque actualisation réussie, une mesure est enregistrée dans le <code>localStorage</code> de votre
+        navigateur (max. 500 points par widget, soit environ 8 h). Les courbes et le « gain depuis le début » se basent
+        sur cet historique. Il reste privé et local ; vous pouvez l'effacer avec le bouton dédié.</p>
+    </details>
+    <details>
+      <summary>Alertes de surveillance (fonctionnalité clé)</summary>
+      <p>Un mineur qui s'arrête en silence fait perdre du temps de calcul. Le tableau de bord détecte donc :</p>
+      <ul>
+        <li>une API injoignable 2 fois de suite ;</li>
+        <li>une baisse du nombre de workers actifs ;</li>
+        <li>un hashrate sous le seuil que vous définissez (0 = désactivé) ;</li>
+        <li>le retour à la normale.</li>
+      </ul>
+      <p>Chaque alerte est consignée dans le journal et peut déclencher une notification navigateur et un bip sonore. La
+        page doit rester ouverte dans un onglet.</p>
+    </details>
+    <details>
+      <summary>Bon à savoir</summary>
+      <p>Si le navigateur bloque une requête (CORS) lorsque la page est ouverte en <code>file://</code>, essayez un
+        petit serveur local (<code>npx serve</code>). Le minage solo Bitcoin avec un NerdMiner relève de la loterie :
+        l'indicateur « best diff » montre seulement à quel point vous vous êtes approché d'un bloc.</p>
+    </details>
+    <details>
+      <summary>Comptes et sécurité</summary>
+      <p>Le compte est créé et stocké <b>uniquement dans votre navigateur</b> (il n'existe aucun serveur). Votre mot de
+        passe sert à dériver une clé (PBKDF2, 600 000 itérations) qui chiffre vos clés en AES-GCM : un mauvais mot de
+        passe ne peut donc pas les déchiffrer. Le mot de passe n'est jamais stocké. Chaque compte a son propre
+        historique et ses propres réglages.</p>
+      <ul>
+        <li>Les comptes ne sont pas partagés entre navigateurs ou appareils.</li>
+        <li>Mot de passe oublié = clés à ressaisir sur un nouveau compte (il n'y a pas de récupération).</li>
+        <li>Pour que le chiffrement soit disponible, ouvrez la page via <code>https://</code>, <code>localhost</code> ou
+          <code>file://</code>.</li>
+      </ul>
+    </details>
+  </section>
+
+  <footer>Actualisation automatique toutes les 60 secondes</footer>
+
+  <script>
+    /* Anti-clickjacking : refuse d'être chargé dans une iframe */
+    if (window.top !== window.self) { document.body.textContent = ''; window.top.location = window.self.location }
+    const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    /* Renseignés à la connexion à partir des clés du compte */
+    let DUCO_URL = '', BTC_ADDR = '';
+    const btcUrls = () => [
+      'https://public-pool.io:4000/api/miner/' + encodeURIComponent(BTC_ADDR),
+      'https://public-pool.io:4000/api/client/' + encodeURIComponent(BTC_ADDR)
+    ];
+    const REFRESH_S = 60;
+    const MAX_POINTS = 500;
+    const $ = id => document.getElementById(id);
+    const fr = (n, d = 2) => n.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+    /* ---------- Stockage ---------- */
+    const store = {
+      get(k, def) { try { return JSON.parse(localStorage.getItem(k)) ?? def } catch { return def } },
+      set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)) } catch { } }
+    };
+    let currentUser = null;
+    let history = { duco: [], btc: [] };
+    let settings = { minHash: 0, notif: false, sound: true };
+    let state = { ducoFails: 0, btcFails: 0, lastWorkers: null, ducoDown: false, btcDown: false, lowHash: false };
+
+    function pushHistory(key, v) {
+      history[key].push({ t: Date.now(), v });
+      if (history[key].length > MAX_POINTS) history[key].shift();
+      store.set('mining-history:' + currentUser, history);
+    }
+
+    /* ---------- UI helpers ---------- */
+    function setValue(id, html, cls = '') { const el = $(id); el.className = 'value ' + cls; el.innerHTML = html }
+    function setStatus(id, s) {
+      const el = $(id); el.className = 'status ' + s;
+      el.textContent = s === 'ok' ? 'En ligne' : 'Erreur';
+    }
+    function trendHTML(arr) {
+      if (arr.length < 2) return '';
+      const d = arr[arr.length - 1].v - arr[arr.length - 2].v;
+      if (Math.abs(d) < 1e-9) return '';
+      return `<span class="trend ${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'} ${fr(Math.abs(d), 2)}</span>`;
+    }
+
+    async function getJSON(url) {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 15000);
+      try {
+        const r = await fetch(url, { signal: ctrl.signal, cache: 'no-store' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return await r.json();
+      } finally { clearTimeout(t) }
+    }
+
+    /* ---------- Graphique (canvas, sans librairie) ---------- */
+    function drawChart(canvasId, data, color) {
+      const c = $(canvasId), dpr = window.devicePixelRatio || 1;
+      const w = c.clientWidth, h = c.clientHeight;
+      c.width = w * dpr; c.height = h * dpr;
+      const ctx = c.getContext('2d'); ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, w, h);
+      if (data.length < 2) {
+        ctx.fillStyle = '#8a8aa8'; ctx.font = '12px Outfit, sans-serif';
+        ctx.fillText('Historique en cours de collecte…', 4, h / 2);
+        return;
+      }
+      const vals = data.map(p => p.v);
+      let min = Math.min(...vals), max = Math.max(...vals);
+      if (max === min) { max += 1; min -= 1 }
+      const pad = 6;
+      const X = i => pad + i * (w - 2 * pad) / (data.length - 1);
+      const Y = v => h - pad - (v - min) / (max - min) * (h - 2 * pad);
+      const grad = ctx.createLinearGradient(0, 0, 0, h);
+      grad.addColorStop(0, color + '66'); grad.addColorStop(1, color + '00');
+      ctx.beginPath();
+      data.forEach((p, i) => i ? ctx.lineTo(X(i), Y(p.v)) : ctx.moveTo(X(i), Y(p.v)));
+      ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.shadowColor = color; ctx.shadowBlur = 8; ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.lineTo(X(data.length - 1), h); ctx.lineTo(X(0), h); ctx.closePath();
+      ctx.fillStyle = grad; ctx.fill();
+    }
+    function redrawCharts() {
+      drawChart('duco-chart', history.duco, '#ff9f1c');
+      drawChart('btc-chart', history.btc, '#00f0ff');
+    }
+
+    /* ---------- Alertes ---------- */
+    function beep() {
+      if (!settings.sound) return;
+      try {
+        const a = new (window.AudioContext || window.webkitAudioContext)();
+        const o = a.createOscillator(), g = a.createGain();
+        o.connect(g); g.connect(a.destination); o.frequency.value = 880; g.gain.value = .08;
+        o.start(); o.stop(a.currentTime + .25);
+      } catch { }
+    }
+    function alertUser(msg, level = 'warn') {
+      const log = $('alert-log');
+      if (log.firstElementChild && log.firstElementChild.textContent.startsWith('Aucune')) log.innerHTML = '';
+      const li = document.createElement('li'); li.className = level;
+      li.innerHTML = `<time>${new Date().toLocaleTimeString('fr-FR')}</time>`;
+      li.append(msg);
+      log.prepend(li);
+      if (level !== 'info') {
+        beep();
+        if (settings.notif && 'Notification' in window && Notification.permission === 'granted')
+          new Notification('Crypto Mining Dashboard', { body: msg });
+      }
+    }
+
+    /* ---------- Duino-Coin ---------- */
+    async function updateDuco() {
+      try {
+        const data = await getJSON(DUCO_URL);
+        const bal = Number((data.result || data).balance);
+        if (!isFinite(bal)) throw new Error('balance manquante');
+        pushHistory('duco', bal);
+        const arr = history.duco;
+        setValue('duco-balance', fr(bal, 4) + '<span class="unit">DUCO</span>' + trendHTML(arr));
+        const gain = bal - arr[0].v, hours = (arr[arr.length - 1].t - arr[0].t) / 3.6e6;
+        $('duco-gain').textContent = (gain >= 0 ? '+' : '') + fr(gain, 4) + ' DUCO';
+        $('duco-rate').textContent = hours > 0.05 ? fr(gain / hours, 3) + ' DUCO / h' : 'Collecte en cours…';
+        setStatus('duco-status', 'ok');
+        if (state.ducoDown) { alertUser('Duino-Coin : API de nouveau joignable.', 'info'); state.ducoDown = false }
+        state.ducoFails = 0;
+        return true;
+      } catch (e) {
+        console.error('DUCO', e);
+        setValue('duco-balance', 'Erreur réseau', 'error');
+        setStatus('duco-status', 'error');
+        if (++state.ducoFails >= 2 && !state.ducoDown) { state.ducoDown = true; alertUser('Duino-Coin : API injoignable.', 'crit') }
+        return false;
+      }
+    }
+
+    /* ---------- NerdMiner ---------- */
+    async function fetchBtc() {
+      let lastErr;
+      for (const url of btcUrls()) {
+        try { return await getJSON(url) } catch (e) { lastErr = e }
+      }
+      throw lastErr;
+    }
+
+    async function updateBtc() {
+      try {
+        const data = await fetchBtc();
+        const workers = Array.isArray(data.workers) ? data.workers : [];
+        let hr = Number(data.hashRate);
+        if (!isFinite(hr)) hr = workers.reduce((s, w) => s + (Number(w.hashRate) || 0), 0);
+        if (!isFinite(hr)) throw new Error('hashRate manquant');
+        const kh = hr / 1000;
+        const wc = Number(data.workersCount ?? workers.length);
+
+        pushHistory('btc', kh);
+        setValue('btc-hashrate', fr(kh, 2) + '<span class="unit">KH/s</span>' + trendHTML(history.btc));
+        setValue('btc-workers', wc.toLocaleString('fr-FR'));
+        const best = Number(data.bestDifficulty);
+        $('btc-best').textContent = isFinite(best) ? best.toLocaleString('fr-FR', { maximumFractionDigits: 2 }) : 'N/A';
+
+        $('worker-list').innerHTML = workers.map(w =>
+          `<li><span>${esc(w.name ?? 'worker')}</span><span>${fr((Number(w.hashRate) || 0) / 1000, 2)} KH/s</span></li>`).join('');
+        setStatus('btc-status', 'ok');
+
+        if (state.btcDown) { alertUser('NerdMiner : API de nouveau joignable.', 'info'); state.btcDown = false }
+        state.btcFails = 0;
+        if (state.lastWorkers !== null && wc < state.lastWorkers)
+          alertUser(`NerdMiner : workers actifs passés de ${state.lastWorkers} à ${wc}.`, 'crit');
+        if (state.lastWorkers !== null && wc > state.lastWorkers && state.lastWorkers === 0)
+          alertUser('NerdMiner : un worker est de retour en ligne.', 'info');
+        state.lastWorkers = wc;
+        if (settings.minHash > 0) {
+          if (kh < settings.minHash && !state.lowHash) { state.lowHash = true; alertUser(`NerdMiner : hashrate ${fr(kh)} KH/s sous le seuil de ${settings.minHash} KH/s.`, 'warn') }
+          else if (kh >= settings.minHash && state.lowHash) { state.lowHash = false; alertUser('NerdMiner : hashrate revenu au-dessus du seuil.', 'info') }
+        }
+        return true;
+      } catch (e) {
+        console.error('BTC', e);
+        setValue('btc-hashrate', 'Erreur réseau', 'error');
+        setValue('btc-workers', 'Erreur réseau', 'error');
+        setStatus('btc-status', 'error');
+        if (++state.btcFails >= 2 && !state.btcDown) { state.btcDown = true; alertUser('NerdMiner : API public-pool injoignable.', 'crit') }
+        return false;
+      }
+    }
+
+    /* ---------- Cycle de rafraîchissement ---------- */
+    let remaining = REFRESH_S, busy = false;
+    async function refresh() {
+      if (busy) return;
+      busy = true; $('refresh-btn').disabled = true;
+      const results = await Promise.all([updateDuco(), updateBtc()]);
+      if (results.some(Boolean)) $('last-update').textContent = new Date().toLocaleTimeString('fr-FR');
+      redrawCharts();
+      remaining = REFRESH_S; busy = false; $('refresh-btn').disabled = false;
+    }
+    setInterval(() => {
+      if (!busy) remaining = Math.max(0, remaining - 1);
+      $('countdown').textContent = remaining;
+      $('progress-bar').style.width = ((REFRESH_S - remaining) / REFRESH_S * 100) + '%';
+      if (remaining === 0 && currentUser) refresh();
+    }, 1000);
+
+    /* ---------- Réglages ---------- */
+    function applySettings() {
+      $('min-hash').value = settings.minHash;
+      $('notif-toggle').checked = settings.notif;
+      $('sound-toggle').checked = settings.sound;
+    }
+    const save = () => store.set('mining-settings:' + currentUser, settings);
+    $('min-hash').addEventListener('change', e => { settings.minHash = Math.max(0, Number(e.target.value) || 0); state.lowHash = false; save() });
+    $('sound-toggle').addEventListener('change', e => { settings.sound = e.target.checked; save() });
+    $('notif-toggle').addEventListener('change', async e => {
+      if (e.target.checked && 'Notification' in window) {
+        const p = await Notification.requestPermission();
+        settings.notif = p === 'granted'; e.target.checked = settings.notif;
+      } else settings.notif = false;
+      save();
+    });
+    $('clear-history').addEventListener('click', () => {
+      history = { duco: [], btc: [] }; store.set('mining-history:' + currentUser, history); redrawCharts();
+    });
+    $('refresh-btn').addEventListener('click', refresh);
+    window.addEventListener('resize', redrawCharts);
+
+    /* ---------- Comptes locaux (pseudo + mot de passe) ---------- */
+    /* Les clés du mineur sont chiffrées en AES-GCM avec une clé dérivée du mot de passe (PBKDF2).
+       Un mauvais mot de passe fait échouer le déchiffrement : c'est la vérification d'identité. */
+    const enc = new TextEncoder(), dec = new TextDecoder();
+    const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+    const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+    let accounts = store.get('mining-accounts', {});
+    let cryptoKey = null;
+
+    const PBKDF2_ITER = 600000, LEGACY_ITER = 200000;
+    async function deriveKey(pw, salt, iter = PBKDF2_ITER) {
+      const base = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveKey']);
+      return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: iter, hash: 'SHA-256' },
+        base, { name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
+    }
+    async function encryptKeys(key, obj) {
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(JSON.stringify(obj)));
+      return { iv: b64(iv), data: b64(ct) };
+    }
+    async function decryptKeys(key, acc) {
+      const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(acc.iv) }, key, unb64(acc.data));
+      return JSON.parse(dec.decode(pt));
+    }
+
+    const msg = (t, ok) => { const m = $('auth-msg'); m.textContent = t; m.style.color = ok ? 'var(--ok)' : 'var(--err)' };
+    function showForm(name) {
+      ['login', 'register', 'keys'].forEach(n => $('form-' + n).classList.toggle('show', n === name));
+      $('auth-tabs').style.display = name === 'keys' ? 'none' : 'flex';
+      $('tab-login').classList.toggle('active', name === 'login');
+      $('tab-register').classList.toggle('active', name === 'register');
+      msg('');
+    }
+    $('tab-login').onclick = () => showForm('login');
+    $('tab-register').onclick = () => showForm('register');
+
+    const idOf = name => name.trim().toLowerCase();
+
+    $('form-register').addEventListener('submit', async e => {
+      e.preventDefault();
+      const name = $('reg-name').value.trim(), pw = $('reg-pass').value, id = idOf(name);
+      if (!/^[\w.-]{3,24}$/.test(name)) return msg('Pseudo : 3 à 24 caractères (lettres, chiffres, . _ -).');
+      if (pw.length < 8) return msg('Mot de passe : 8 caractères minimum.');
+      if (pw !== $('reg-pass2').value) return msg('Les mots de passe ne correspondent pas.');
+      if (['__proto__', 'constructor', 'prototype', 'tostring', 'hasownproperty'].includes(id)) return msg('Ce pseudo est réservé.');
+      if (Object.prototype.hasOwnProperty.call(accounts, id)) return msg('Ce pseudo existe déjà.');
+      try {
+        const salt = crypto.getRandomValues(new Uint8Array(16));
+        const key = await deriveKey(pw, salt);
+        accounts[id] = { name, salt: b64(salt), iter: PBKDF2_ITER, ...(await encryptKeys(key, {})) };
+        store.set('mining-accounts', accounts);
+        cryptoKey = key; currentUser = id;
+        $('key-duco').value = ''; $('key-btc').value = '';
+        $('keys-cancel').hidden = true;
+        showForm('keys');
+        msg('Compte créé ! Entrez maintenant vos clés.', true);
+      } catch (err) { console.error(err); msg('Chiffrement indisponible (ouvrez la page en https, localhost ou file://).') }
+    });
+
+    let loginFails = 0, lockUntil = 0;
+    function failLogin(text) {
+      if (++loginFails >= 5) lockUntil = Date.now() + 30000 * Math.min(2 ** (loginFails - 5), 64);
+      msg(text);
+    }
+
+    $('form-login').addEventListener('submit', async e => {
+      e.preventDefault();
+      const wait = Math.ceil((lockUntil - Date.now()) / 1000);
+      if (wait > 0) return msg('Trop de tentatives. Réessayez dans ' + wait + ' s.');
+      const id = idOf($('login-name').value), acc = Object.prototype.hasOwnProperty.call(accounts, id) ? accounts[id] : null;
+      if (!acc) return failLogin('Pseudo ou mot de passe incorrect.');
+      try {
+        const key = await deriveKey($('login-pass').value, unb64(acc.salt), acc.iter || LEGACY_ITER);
+        const keys = await decryptKeys(key, acc);
+        loginFails = 0;
+        cryptoKey = key; currentUser = id;
+        $('login-pass').value = '';
+        if (keys.duco && keys.btc) startApp(keys);
+        else { $('keys-cancel').hidden = true; showForm('keys') }
+      } catch (err) {
+        console.error(err);
+        failLogin(window.crypto && crypto.subtle ? 'Pseudo ou mot de passe incorrect.' : 'Chiffrement indisponible (ouvrez la page en https, localhost ou file://).');
+      }
+    });
+
+    $('form-keys').addEventListener('submit', async e => {
+      e.preventDefault();
+      const duco = $('key-duco').value.trim(), btc = $('key-btc').value.trim();
+      if (!/^[\w.-]{1,64}$/.test(duco)) return msg('Nom Duino-Coin invalide.');
+      if (!/^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,62}$/.test(btc)) return msg('Adresse Bitcoin invalide.');
+      const keys = { duco, btc };
+      Object.assign(accounts[currentUser], await encryptKeys(cryptoKey, keys));
+      store.set('mining-accounts', accounts);
+      startApp(keys);
+    });
+
+    async function persistSession() {
+      sessionStorage.setItem('mining-session', JSON.stringify({ id: currentUser, k: b64(await crypto.subtle.exportKey('raw', cryptoKey)) }));
+    }
+
+    async function startApp(keys) {
+      DUCO_URL = 'https://server.duinocoin.com/balances/' + encodeURIComponent(keys.duco);
+      BTC_ADDR = keys.btc;
+      history = store.get('mining-history:' + currentUser, { duco: [], btc: [] });
+      settings = store.get('mining-settings:' + currentUser, { minHash: 0, notif: false, sound: true });
+      state = { ducoFails: 0, btcFails: 0, lastWorkers: null, ducoDown: false, btcDown: false, lowHash: false };
+      $('user-label').textContent = accounts[currentUser].name;
+      applySettings();
+      document.body.classList.remove('locked');
+      try { await persistSession() } catch { }
+      redrawCharts();
+      remaining = REFRESH_S; busy = false;
+      refresh();
+    }
+
+    $('edit-keys').addEventListener('click', async () => {
+      const keys = await decryptKeys(cryptoKey, accounts[currentUser]);
+      $('key-duco').value = keys.duco || ''; $('key-btc').value = keys.btc || '';
+      $('keys-cancel').hidden = false;
+      document.body.classList.add('locked'); showForm('keys');
+    });
+    $('keys-cancel').addEventListener('click', () => document.body.classList.remove('locked') || redrawCharts());
+    $('logout-btn').addEventListener('click', () => { sessionStorage.removeItem('mining-session'); location.reload() });
+
+    /* Reprise de session dans l'onglet courant (évite de retaper le mot de passe après un rechargement) */
+    (async function restoreSession() {
+      try {
+        const s = JSON.parse(sessionStorage.getItem('mining-session'));
+        if (!s || !accounts[s.id]) return;
+        const key = await crypto.subtle.importKey('raw', unb64(s.k), 'AES-GCM', true, ['encrypt', 'decrypt']);
+        const keys = await decryptKeys(key, accounts[s.id]);
+        if (!keys.duco || !keys.btc) return;
+        cryptoKey = key; currentUser = s.id;
+        startApp(keys);
+      } catch { sessionStorage.removeItem('mining-session') }
+    })();
+    if (!Object.keys(accounts).length) showForm('register');
+  </script>
+</body>
+
+</html>
